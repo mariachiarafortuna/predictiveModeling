@@ -1,0 +1,273 @@
+---
+title: "Data Preprocessing"
+author: "Mariachiara Fortuna"
+date: "March 23, 2018"
+output: html_document
+---
+
+```{r}
+require(AppliedPredictiveModeling)
+require(dplyr)
+require(caret)
+require(e1071)
+
+```
+
+# THEORY & NOTES
+
+## Data reading and cleaning
+
+```{r}
+data("segmentationOriginal")
+
+seg_tbl <- segmentationOriginal %>%
+  filter(Case == "Train") %>%
+  select(-c(Cell, Case, Class), -contains("Status"))
+```
+
+
+## Data preprocessing
+
+### caret::preProcess
+
+preProcess() estimate some pre-processing transformations (centering, scaling etc.) and allows to apply them to any data set with the same variables.
+
+In all cases, transformations and operations are estimated using the data in x and these operations are applied to new data using these values; nothing is recomputed when using the predict function.
+
+Predictors that are not numeric are ignored in the calculations. (?)
+
+#### Centering and scaling
+
+method = "center" subtracts the mean of the predictor's data (again from the data in x) from the predictor values while method = "scale" divides by the standard deviation.
+
+```{r}
+t_scale <- seg_tbl %>% 
+  preProcess(method = "center", "scale")
+
+class(t_scale)
+
+seg_scaled <- predict(t_scale, seg_tbl)
+
+```
+
+
+#### Ranging
+
+The "range" transformation scales the data to be within rangeBounds. If new samples have values larger or smaller than those in the training set, values will be outside of this range.
+
+```{r}
+t_range <- seg_tbl %>% 
+  preProcess(method = "range", rangeBounds = c(-1, 1))
+
+seg_ranged <- predict(t_range, seg_tbl)
+
+```
+
+
+#### Skewness transformations
+
+Require the e1071 package.
+
+The Box-Cox (method = "BoxCox"), Yeo-Johnson (method = "YeoJohnson"), and exponential transformations (method = "expoTrans")have been "repurposed" here: they are being used to transform the predictor variables. The Box-Cox transformation was developed for transforming the response variable while another method, the Box-Tidwell transformation, was created to estimate transformations of predictor data. However, the Box-Cox method is simpler, more computationally efficient and is equally effective for estimating power transformations. The Yeo-Johnson transformation is similar to the Box-Cox model but can accommodate predictors with zero and/or negative values (while the predictors values for the Box-Cox transformation must be strictly positive.) The exponential transformation of Manly (1976) can also be used for positive or negative data.
+
+```{r}
+
+#e1071::skewness()
+
+t_boxcox <- seg_tbl %>% 
+  preProcess(method = "BoxCox")
+
+seg_boxcox <- predict(t_boxcox, seg_tbl)
+```
+
+### dummy
+
+
+# EXERCISES
+
+## Ex 3.1
+
+```{r}
+require(mlbench)
+require(GGally)
+
+data(Glass)
+
+```
+
+## Data exploration 
+
+```{r}
+summary(Glass)
+```
+
+### Predictors distribution and collinearity
+
+```{r}
+ggpairs(Glass, columns = 1:9, progress = F)
+```
+
+Impressions:
+
+* Asimmetria: K, Ba, Fe. Light skewness: Ka, Mg (code pesanti)
+* Correlazione: forte tra RI e CA. Mederata tra RI e Ai, RI e Si, Ca e Mg, Ca e Ai, Ba e Ai
+
+
+### Predictors distributions tra  livelli di Type
+
+```{r}
+
+pred_var <- colnames(Glass)[1:9]
+
+ggduo(Glass, pred_var, "Type")
+```
+
+
+### Boxplot
+
+```{r}
+ ggplot(data = Glass, aes(Type, RI)) +
+  geom_boxplot()
+```
+
+```{r}
+ ggplot(data = Glass, aes(Type, Na)) +
+  geom_boxplot()
+```
+
+### Variabile risposta
+
+```{r}
+
+n_row <- nrow(Glass)
+
+Glass %>%
+  group_by(Type) %>%
+  summarise(n = n(),
+            perc = scales::percent(n()/n_row)
+            )
+```
+
+La variabile risposta è fortemente unbalanced tra le classi
+
+
+```{r}
+Glass %>%
+  ggplot(aes(Type)) +
+  geom_bar()
+```
+
+
+#### Distribuzione tra le classi
+
+```{r}
+Glass %>%
+  ggplot(aes(x = RI, y = 1, col = Type)) +
+  geom_point()
+```
+
+
+
+#### GGmatrix!
+
+```{r}
+plotList <- list()
+
+
+plotList[[1]] <-  ggplot(Glass, aes_string(x = "RI", 
+                                    y = 1, col = "Type")) +
+  geom_point()
+
+plotList[[2]] <-  ggplot(Glass, aes(x = Na, 
+                                    y = 1, col = Type))+
+  geom_point()
+
+plotList[[3]] <-  ggplot(Glass, aes(x = Mg, 
+                                    y = 1, col = Type))+
+  geom_point()
+
+plotList[[4]] <-  ggplot(Glass, aes(x = Al, 
+                                    y = 1, col = Type))+
+  geom_point()
+
+  
+# bare minimum of plotList, nrow, and ncol
+pm <- ggmatrix(plotList, 2, 2)
+pm
+```
+
+
+```{r}
+
+classBar <- function(xvar, class){
+  ggplot(Glass, aes_string(x = xvar, y = 1, col = class)) +
+  geom_point(size = 2) 
+ # annotate("text", x = 0, y = 1.25, label = xvar)  
+}
+
+plotList <- list()
+
+for(i in 1:9){
+plotList[[i]] <- classBar(pred_var[i], "Type")  
+}
+
+pm <- ggmatrix(plotList, 3, 3)
+pm
+```
+
+
+
+### A test - Classification tree
+
+#### Training set
+
+```{r}
+set.seed(107)
+
+inTrain <- createDataPartition(
+  y = Glass$Type,
+  p = .75,
+  list = FALSE
+)
+
+training <- Glass[ inTrain,]
+testing  <- Glass[-inTrain,]
+
+```
+
+
+#### Tree
+
+```{r}
+library(rpart)
+
+tree1 <- rpart(Type ~ ., method = "class", data = training)
+
+# print(tree1)
+# summary(tree1)
+# plot(tree1, compress = T, margin = 0.2, branch = 0.3)
+# text(tree1, use.n = T, digits = 3, cex = 0.8)
+# printcp(tree1)
+
+get_accuracy <- function(tree_fit, newdata = newdata){
+
+  tree_pred <- predict(tree_fit, newdata = newdata, type = "class")
+  confusion <- table(tree_pred, newdata$Type)
+  
+  correct <- sum(diag(confusion))
+  total <- nrow(newdata)
+  
+  misclassError <- (total-correct)/total
+  
+  accuracy <- 1-misclassError
+  
+  return(accuracy)
+}
+
+get_accuracy(tree1, newdata = testing)
+
+```
+
+
+
+
