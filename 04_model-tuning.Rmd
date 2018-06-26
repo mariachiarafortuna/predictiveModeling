@@ -1,0 +1,122 @@
+---
+title: "04. Model Tuning"
+output: html_notebook
+---
+
+# EXAMPLES
+
+## Data splitting
+
+```{r loading}
+library(AppliedPredictiveModeling)
+library(caret)
+
+data(twoClassData)
+```
+twoClassData: data.frame di 208 obs, 2 colonne (predictorA, predictorB)
+
+Per _stratified random splitting_ passo come argomento il vettore di outcome:
+
+```{r basic-splitting}
+set.seed(1)
+trainingRows <- createDataPartition(classes,
+                                    p = .8,
+                                    list = FALSE) 
+class(trainingRows)
+```
+
+Ottengo una matrice di numeri di riga. Genero training e test set:
+
+```{r}
+trainPredictors <- predictors[trainingRows, ]
+trainClasses <- classes[trainingRows]
+
+testPredictors <- predictors[-trainingRows, ]
+testClasses <- classes[-trainingRows]
+```
+
+
+## Resampling
+
+Creo una lista di partizioni
+
+```{r}
+repeatedSplits <- createDataPartition(classes,
+                                      p = 0.8,
+                                      times = 3)
+```
+
+## k-fold validation
+
+```{r}
+set.seed(1)
+cvSplits <- createFolds(classes, 
+                        k = 10,
+                        returnTrain = T)
+```
+
+Ogni fold ospita il 100-k% delle osservazioni. 
+
+Se voglio applicare il primo split:
+
+```{r}
+cvTrainPredictors1 <- predictors[cvSplits$Fold01,]
+cvTestPredictors1 <- predictors[-cvSplits$Fold01,]
+```
+
+
+## Basic model building
+
+Applichiamo 5-nearest neighbor model
+
+```{r}
+
+# Data partition
+set.seed(1)
+trainingRows <- createDataPartition(classes,
+                                   p = 0.8,
+                                   list = F)
+
+trainingPredictors <- as.matrix(predictors[trainingRows, ])
+testPredictors <- predictors[-trainingRows, ]
+
+trainingClasses <- classes[trainingRows]
+testClasses <- classes[-trainingRows]
+
+# Model fitting (non-formula interface)
+knnFit <- knn3(x = trainingPredictors, 
+               y = trainingClasses,
+               k = 5)
+
+# Prediction
+testPredictions <- predict(knnFit,
+                          newdata = testPredictors,
+                          type = "class")
+
+# Accuracy (by me, check)
+accuracy <- function(prediction, values){
+  sum(values == prediction)/length(values)  
+}
+accuracy(testPredictions, testClasses)
+
+```
+
+## Determination of tuning parameters
+
+```{r}
+data("GermanCredit")
+
+# Basic version
+gcRows <- createDataPartition(GermanCredit$Class, 
+                              p = 0.8,
+                              list = F)
+GermanCreditTrain <- GermanCredit[gcRows,]
+GermanCreditTest <- GermanCredit[-gcRows,]
+
+# SVM model fit
+set.seed(1056)
+svmFit <- train(Class ~ .,
+                data = GermanCreditTrain,
+                method = "svmRadial")
+```
+
