@@ -103,6 +103,7 @@ accuracy(testPredictions, testClasses)
 
 ## Determination of tuning parameters
 
+
 ```{r}
 data("GermanCredit")
 
@@ -113,11 +114,30 @@ gcRows <- createDataPartition(GermanCredit$Class,
 GermanCreditTrain <- GermanCredit[gcRows,]
 GermanCreditTest <- GermanCredit[-gcRows,]
 
-# SVM model fit
+# SVM model fit, parametri di default
 set.seed(1056)
 svmFit <- train(Class ~ .,
                 data = GermanCreditTrain,
                 method = "svmRadial")
 ```
 
+1. Preprocessing dei predictor data con centering and scaling
 
+```{r}
+set.seed(1056)
+svmFit <- train(Class ~ .,
+                data = GermanCreditTrain,
+                method = "svmRadial",
+                preProc = c("center", "scale"))
+svmFit
+```
+
+```{r}
+set.seed(1056)
+svmFit <- train(Class ~ .,
+                data = GermanCreditTrain,
+                method = "svmRadial",
+                preProc = c("center", "scale"),
+                tuneLength = 10)
+svmFit
+```
