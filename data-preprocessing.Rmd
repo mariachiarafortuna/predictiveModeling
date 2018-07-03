@@ -243,11 +243,14 @@ library(rpart)
 
 tree1 <- rpart(Type ~ ., method = "class", data = training)
 
-# print(tree1)
-# summary(tree1)
-# plot(tree1, compress = T, margin = 0.2, branch = 0.3)
-# text(tree1, use.n = T, digits = 3, cex = 0.8)
-# printcp(tree1)
+print(tree1)
+summary(tree1)
+plot(tree1, compress = T, margin = 0.2, branch = 0.3)
+text(tree1, use.n = T, digits = 3, cex = 0.8)
+printcp(tree1)
+
+newdata <- testing
+tree_fit <- tree1
 
 get_accuracy <- function(tree_fit, newdata = newdata){
 

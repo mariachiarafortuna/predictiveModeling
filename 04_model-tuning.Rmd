@@ -101,7 +101,34 @@ accuracy(testPredictions, testClasses)
 
 ```
 
-## Determination of tuning parameters
+# Determination of tuning parameters
+
+
+```{r}
+data("GermanCredit")
+library(pheatmap)
+
+pheatmap(as.matrix(GermanCredit[,1:5]), scale = "column")
+
+# Generate some data
+	test = matrix(rnorm(200), 20, 10)
+	test[1:10, seq(1, 10, 2)] = test[1:10, seq(1, 10, 2)] + 3
+	test[11:20, seq(2, 10, 2)] = test[11:20, seq(2, 10, 2)] + 2
+	colnames(test) = paste("Test", 1:10, sep = "")
+	rownames(test) = paste("Gene", 1:20, sep = "")
+
+	# Draw heatmaps
+	pheatmap(test)
+pheatmap(test, scale = "row", clustering_distance = "correlation")
+	pheatmap(test, color = colorRampPalette(c("navy", "white","firebrick3"))(50))
+	pheatmap(test, cluster_row = T)
+	pheatmap(test, legend = FALSE)
+	pheatmap(test, cellwidth = 15, cellheight = 12)
+	pheatmap(test, cellwidth = 15, cellheight = 12, fontsize = 8, filename = "test.pdf")
+
+
+```
+
 
 
 ```{r}
