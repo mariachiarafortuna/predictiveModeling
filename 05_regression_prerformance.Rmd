@@ -1,0 +1,121 @@
+---
+title: "05. Performance in regression models"
+output: html_notebook
+---
+
+# Libraries
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(GGally)
+```
+
+
+# Data simulation
+
+Generiamo dei dati correlati. 
+
+NB La correlazione dipende dalla scala. La perturbazione che aggiungo come termine di errore ha un impatto più leggero se i miei coefficienti sono "grandi"
+
+```{r}
+
+set.seed(1)
+
+x <- rnorm(20)
+
+y1 <- 0.7*x + rnorm(20)
+cor(x, y1) # 0.46
+
+y2 <- 3 + 2*x + rnorm(20)
+cor(x, y2) # 0.93
+
+y3 <- 1 + 0.5*x + rnorm(20)
+cor(x, y3) # 0.27
+
+```
+
+
+
+
+```{r}
+set.seed(1)
+x <- rnorm(20)
+
+set.seed(2)
+observed <- 0.8 * x + rnorm(20)
+
+predicted <- 0.8 * x
+
+residual <- observed - predicted
+
+cor(observed, predicted) # 0.69
+cor(predicted, residual) # 0.25
+
+summary(residual)
+```
+
+
+
+## Plot
+
+### extendrange()
+
+Estende un range numerico di una piccola percentuale, da entrambi i lati. Default f = 0.05.
+Creaimo un vettore comune con tutti i valori ed estediamo quel range.
+
+```{r}
+
+axisRange <- extendrange(c(observed, predicted))
+
+range(observed)
+range(predicted)
+axisRange
+```
+
+### Plot
+
+```{r}
+plot(observed, predicted, xlim = axisRange, ylim = axisRange)
+```
+
+#### ggplot
+
+```{r}
+fit_data <- data.frame(x, observed, predicted, residual)
+
+?ggmatrix()
+
+fit_data %>%
+  ggplot(aes(x = x, y = observed)) +
+  geom_point() +
+  ggtitle("X vs observed (Y)")
+
+fit_data %>%
+  ggplot(aes(x = observed, y = predicted)) +
+  geom_point() +
+  ggtitle("Observed vs predicted")
+  
+fit_data %>%
+  ggplot(aes(x = predicted, y = residual)) +
+  geom_point() +
+  ggtitle("Predicted vs Residuals")
+  
+```
+
+
+# Performances measures
+
+### MRSE
+
+Mean root square error
+
+```{r}
+MRSE <- fit_data %>%
+  select(residual) %>%
+  # mutate(square_res = residual^2) %>%
+  summarise(sum_res = sum(residual),
+            sum_sqr_res = sum(residual^2))
+```
+
