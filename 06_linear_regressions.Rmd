@@ -1,0 +1,53 @@
+---
+title: "06. Linear regression and its cousins"
+output: html_notebook
+---
+
+# Library and data
+
+```{r}
+library(AppliedPredictiveModeling)
+library(corrplot)
+library(caret)
+library(dplyr)
+library(compare)
+```
+
+
+```{r}
+data(solubility)
+```
+
+solTrainXtrans and solTestXtrans are Box-Cox transformed
+
+## Data exploration
+
+```{r}
+correlations <- cor(solTrainX)
+corrplot(correlations, order = "hclust")
+```
+
+## Check pairwise correlations over threshold 
+
+```{r}
+
+pairwise_corr <- function(correlations, threshold = threshold){
+  nr <- nrow(correlations)
+  sum(correlations > threshold | correlations < -threshold) - nr  
+}
+
+pairwise_corr(correlations, 0.8)
+```
+
+## Box-cox transform
+
+```{r}
+boxcox <- preProcess(solTrainX, method = "BoxCox") %>%
+  predict(solTrainX)
+
+comparison <- compare(solTrainXtrans, boxcox, allowAll=TRUE)
+
+comparison$result
+comparison$tM
+```
+
