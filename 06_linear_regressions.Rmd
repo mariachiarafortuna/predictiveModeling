@@ -11,12 +11,11 @@ library(corrplot)
 library(caret)
 library(dplyr)
 library(compare)
-```
+library(e1071)
 
-
-```{r}
 data(solubility)
 ```
+
 
 solTrainXtrans and solTestXtrans are Box-Cox transformed
 
@@ -39,7 +38,23 @@ pairwise_corr <- function(correlations, threshold = threshold){
 pairwise_corr(correlations, 0.8)
 ```
 
+Cercare o creare una funzione che individui le coppie di varibili correlate oltre una certa soglia.
+
+
 ## Box-cox transform
+
+Check variables with high skewness
+
+```{r}
+skewValues <- apply(solTrainX, 2, skewness)
+sum(skewValues > 3)
+
+solTrainX %>%
+  summarize_all(skewness) 
+```
+
+Completare la funzione con trasmute, filter values over threeshold
+
 
 ```{r}
 boxcox <- preProcess(solTrainX, method = "BoxCox") %>%
@@ -50,4 +65,71 @@ comparison <- compare(solTrainXtrans, boxcox, allowAll=TRUE)
 comparison$result
 comparison$tM
 ```
+
+Completare con selettore di pairwise correlations over threshold
+
+
+# OLS. Ordinary least square
+
+## Standard OLS
+
+Dobbiamo avere covariate e variabile risposta nello stesso dataset
+
+```{r}
+solTrain_full <- solTrainXtrans %>%
+  cbind(solubility = solTrainY)
+
+# Inutile
+solTest_full <- solTestXtrans %>%
+  cbind(solubility = solTestY)
+```
+
+
+Applichiamo OLS:
+
+```{r}
+olsFit1 <- lm(solubility ~ ., data = solTrain_full)
+
+summary(olsFit1)
+```
+
+
+### Performance sugli stessi dati
+
+Da summary() otteniamo le performance sugli stessi dati (prob. sovrastimate):
+  
+- $R^2$: 0.94
+
+- $RMSE$: 0.55
+
+
+### Performance su test set
+
+Confrontiamo dati osservati e dati previsti su training set.
+
+Per usare caret::defaultSummary() le colonne del dataframe devono chiamarsi obs e pred
+
+```{r}
+olsPred1 <- predict(olsFit1, solTestXtrans) 
+
+# Nomi di colonna fissi
+olsFitTestData1 <- data.frame(obs = solTestY, pred = olsPred1)
+
+defaultSummary(olsFitTestData1)
+```
+
+Esercizio: compute RMSE e Rsquared
+
+```{r}
+RMSE <- sqrt(sum((solTestY - olsPred1)^2)/length(solTestY))
+
+R2 <- cor(solTestY, olsPred1)^2
+
+RMSE
+R2
+
+```
+
+
+## Robust OLS - MASS package
 
