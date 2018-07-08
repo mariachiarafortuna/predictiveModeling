@@ -157,3 +157,43 @@ defaultSummary(rolsFitTestData1)
 ```
 
 Lieve miglioramento di RMSE (ha senso calcolarlo? Sì perchè siamo su test set)
+
+
+## k-fold OLS - caret::
+
+Usiamo caret per una stima più precisa. 
+Possiamo settare il tipo di resampling via trainControl().
+
+Visto che il dataset ha tante osservazioni possiamo usare un k-fold cross-validation
+
+```{r}
+cv10Fold <- trainControl(method = "cv", number = 10)
+
+set.seed(100)
+olsFit2 <- train(x = solTrainXtrans, y = solTrainY,
+                 method = "lm", trControl = cv10Fold)
+
+olsFit2
+```
+
+
+### Diagnostic plots
+
+Nota che le funzioni predict() e resid() generano i valori previsti e i residui direttamente dal fit dell'lm
+
+```{r}
+xyplot(solTrainY ~ predict(olsFit2),
+       # p: point, g: grid
+       type = c("p", "g"),
+       xlab = "Predicted", ylab = "Observed")
+```
+
+```{r}
+xyplot(resid(olsFit2) ~ predict(olsFit2),
+       # p: point, g: grid
+       type = c("p", "g"),
+       xlab = "Predicted", ylab = "Residual")
+```
+
+Sembra che la regressione colga bene la struttura dei dati: non notiamo pattern o outliers.
+
