@@ -67,7 +67,7 @@ comparison$result
 comparison$tM
 ```
 
-Completare con selettore di pairwise correlations over threshold
+Completare con selettore di pairwise correlations over threshold. Vedi dopo, esiste: è la funzione caret::findCorrelation() 
 
 
 # OLS. Ordinary least square
@@ -116,7 +116,12 @@ olsPred1 <- predict(olsFit1, solTestXtrans)
 # Nomi di colonna fissi
 olsFitTestData1 <- data.frame(obs = solTestY, pred = olsPred1)
 
-defaultSummary(olsFitTestData1)
+standardOLS <- defaultSummary(olsFitTestData1) %>% t()
+
+performance_compare <- data.frame()
+
+performance_compare <- performance_compare %>%
+  rbind(standardOLS = standardOLS)
 ```
 
 Esercizio: compute RMSE e Rsquared
@@ -153,7 +158,12 @@ rolsPred1 <- predict(rolsFit1, solTestXtrans)
 # Nomi di colonna fissi
 rolsFitTestData1 <- data.frame(obs = solTestY, pred = rolsPred1)
 
-defaultSummary(rolsFitTestData1)
+robustOLS <- defaultSummary(rolsFitTestData1) %>% t()
+
+performance_compare <- performance_compare %>%
+  rbind(robustOLS = robustOLS)
+
+performance_compare
 ```
 
 Lieve miglioramento di RMSE (ha senso calcolarlo? Sì perchè siamo su test set)
@@ -173,7 +183,17 @@ set.seed(100)
 olsFit2 <- train(x = solTrainXtrans, y = solTrainY,
                  method = "lm", trControl = cv10Fold)
 
-olsFit2
+# olsFit2
+
+olsPred2 <- predict(olsFit2, solTestXtrans)
+
+olsFitTestData2 <- data.frame(obs = solTestY, pred = olsPred2)
+cvStandardOLS <- defaultSummary(olsFitTestData2) %>% t()
+
+performance_compare <- performance_compare %>%
+  rbind(cvStandardOLS = cvStandardOLS)
+
+performance_compare
 ```
 
 
@@ -196,4 +216,39 @@ xyplot(resid(olsFit2) ~ predict(olsFit2),
 ```
 
 Sembra che la regressione colga bene la struttura dei dati: non notiamo pattern o outliers.
+
+## OLS removing pairwise correlated predictors
+
+```{r}
+corThresh <- 0.9
+tooHigh <- findCorrelation(cor(solTrainXtrans), corThresh)
+```
+
+findCorrelation() returns a vector of integers corresponding to columns to remove to reduce pair-wise correlations
+
+```{r}
+corPred <- names(solTrainXtrans)[tooHigh]
+
+trainXfiltered <- solTrainXtrans[, -tooHigh]
+testXfiltered <- solTestXtrans[, -tooHigh]
+```
+
+Train del modello e performance:
+
+```{r}
+olsFit3 <- train(trainXfiltered, solTrainY,
+      method = "lm", trControl = cv10Fold)
+
+olsFit3
+
+olsPred3 <- predict(olsFit3, testXfiltered)
+
+olsFitTestData3 <- data.frame(obs = solTestY, pred = olsPred3)
+cvFilteredOLS <- defaultSummary(olsFitTestData3)
+
+performance_compare <- performance_compare %>%
+  rbind(cvFilteredOLS = cvFilteredOLS)
+
+performance_compare
+```
 
