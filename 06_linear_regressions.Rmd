@@ -12,6 +12,7 @@ library(caret)
 library(dplyr)
 library(compare)
 library(e1071)
+library(MASS)
 
 data(solubility)
 ```
@@ -133,3 +134,26 @@ R2
 
 ## Robust OLS - MASS package
 
+Robust linear regression with Huber approach.
+
+Minimizza l'effetto delle osservazioni influenti (outlier), tramite una metrica alternativa ad SSE per la stima dei parametri: se la differenza tra residui e valori previsti è piccola, è usata al quadrato, altrimenti in valore assoluto.
+
+```{r}
+rolsFit1 <- rlm(solubility ~ ., data = solTrain_full)
+
+summary(olsFit1)
+```
+
+
+### Performance su test set
+
+```{r}
+rolsPred1 <- predict(rolsFit1, solTestXtrans) 
+
+# Nomi di colonna fissi
+rolsFitTestData1 <- data.frame(obs = solTestY, pred = rolsPred1)
+
+defaultSummary(rolsFitTestData1)
+```
+
+Lieve miglioramento di RMSE (ha senso calcolarlo? Sì perchè siamo su test set)
