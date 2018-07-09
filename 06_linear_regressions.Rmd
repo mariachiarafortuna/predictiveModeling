@@ -13,6 +13,8 @@ library(dplyr)
 library(compare)
 library(e1071)
 library(MASS)
+library(pls)
+library(rlang)
 
 data(solubility)
 ```
@@ -279,5 +281,84 @@ performance_compare
 Se nella funzione train() è stato fatto del preprocessing, questo tramite predict() si propaga al test set?
 
 
+# add_performance() function
+ 
+Quasi-quotation version - not working
 
-# Partial Least Square
+```{r}
+
+
+# add_performance <- function(fit, testX, testY, performance_tab, 
+#                             name){
+#   name <- enquo(name)
+#   row_name <- quo_name(name)
+#   predicted <- predict(fit, testX)
+#   obs_pred_tbl <- data.frame(obs = testY, pred = predicted)
+#   new_performance <- defaultSummary(obs_pred_tbl)
+#   performance_tab <- performance_tab %>%
+#     rbind(!!row_name := new_performance)
+#   return(performance_tab)
+# }
+# 
+# add_performance(plsFit1, solTestXtrans, solTestY,
+#                 performance_compare, cvPLS)
+
+
+```
+
+
+do.call() version - working
+
+```{r}
+add_performance <- function(fit, testX, testY, performance_tab, 
+                            name){
+  predicted <- predict(fit, testX)
+  obs_pred_tbl <- data.frame(obs = testY, pred = predicted)
+  new_performance <- defaultSummary(obs_pred_tbl)
+  rownames_val <- rownames(performance_tab)
+  performance_tab <- do.call(rbind, 
+                             setNames(list(performance_tab,
+                                           new_performance), 
+                                      list("", name)))
+  return(performance_tab)
+}
+
+# add_performance(plsFit1, solTestXtrans, solTestY,
+#                 performance_compare, "cvPLS")
+```
+
+
+# Partial Least Square - caret::
+
+Il numero di componenti è un parametro di tuning. Usando caret::train() possiamo stimare il valore migliore all'interno di una griglia (vettore)
+
+```{r}
+set.seed(100)
+plsFit1 <- train(solTrainXtrans, solTrainY,
+                 method = "pls",
+                 preProcess = c("center", "scale"),
+                 trControl = cv10Fold,
+                 tuneLength = 30)
+plsFit1
+
+performance_compare <- add_performance(plsFit1, 
+                                       solTestXtrans, solTestY,
+                                       performance_compare, 
+                                       "cvPLS")
+
+```
+
+### Plotting tuning parameters
+
+```{r}
+ggplot(plsFit1) +
+  geom_line(col = "red") +
+  geom_point(col = "red") +
+  theme_minimal()
+```
+
+
+# Ridge model
+
+
+
