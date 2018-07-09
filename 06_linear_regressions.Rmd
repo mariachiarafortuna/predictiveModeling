@@ -14,7 +14,7 @@ library(compare)
 library(e1071)
 library(MASS)
 library(pls)
-library(rlang)
+library(elasticnet)
 
 data(solubility)
 ```
@@ -328,7 +328,7 @@ add_performance <- function(fit, testX, testY, performance_tab,
 ```
 
 
-# Partial Least Square - caret::
+# Partial Least Square - caret::, da pls::
 
 Il numero di componenti è un parametro di tuning. Usando caret::train() possiamo stimare il valore migliore all'interno di una griglia (vettore)
 
@@ -358,7 +358,36 @@ ggplot(plsFit1) +
 ```
 
 
-# Ridge model
+# Ridge regression - caret::, da MASS::
+
+Penalizza SSE nei minimi quadrati aggungendo il fattore di penalizzazione di secondo ordine (quadrato). 
+
+In formula:
+
+$SSE_{L2} = \sum_{i=1}^n(y_i - \hat{y_i})^2 + \lambda \sum_{j=1}^P \beta_j^2$
+
+L'effetto è che le stime dei parametri crescono solo se ciò causa una riduzione proporzionale dell'SSE. Chiamato anche metodo di shrinkage (restringimento). Lambda è parametro di tuning.
+
+Su caret possiamo definirlo passando all'argomento tuneGrid un dataframe con i valori di interesse da verificare.
+
+
+```{r}
+lambda_vec <- data.frame(lambda = seq(0, 1, by = 0.05))
+  
+ridgeFit1 <- train(solTrainXtrans, solTrainY,
+                   method = "ridge",
+                   preProcess = c("center", "scale"),
+                   trControl = cv10Fold,
+                   tuneGrid = lambda_vec)
+
+ridgeFit1
+
+performance_compare <- add_performance(ridgeFit1, 
+                                       solTestXtrans, solTestY,
+                                       performance_compare, 
+                                       "ridgeRegression")
+```
+
 
 
 
