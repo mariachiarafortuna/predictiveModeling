@@ -93,7 +93,7 @@ Applichiamo OLS:
 ```{r}
 olsFit1 <- lm(solubility ~ ., data = solTrain_full)
 
-summary(olsFit1)
+# summary(olsFit1)
 ```
 
 
@@ -148,7 +148,7 @@ Minimizza l'effetto delle osservazioni influenti (outlier), tramite una metrica 
 ```{r}
 rolsFit1 <- rlm(solubility ~ ., data = solTrain_full)
 
-summary(olsFit1)
+# summary(olsFit1)
 ```
 
 
@@ -315,7 +315,6 @@ add_performance <- function(fit, testX, testY, performance_tab,
   predicted <- predict(fit, testX)
   obs_pred_tbl <- data.frame(obs = testY, pred = predicted)
   new_performance <- defaultSummary(obs_pred_tbl)
-  rownames_val <- rownames(performance_tab)
   performance_tab <- do.call(rbind, 
                              setNames(list(performance_tab,
                                            new_performance), 

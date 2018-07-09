@@ -77,8 +77,46 @@ fatTrain <- fat[TrainRows]
 fatTest <- fat[-TrainRows]
 ```
 
+# Performance function
 
-# Model comparison
+```{r}
+
+start_performance_tab <- function(fit, testX, testY, name){
+  performance_tab <- data.frame()
+  predicted <- predict(fit, testX)
+  obs_pred_tbl <- data.frame(obs = testY, pred = predicted)
+  new_performance <- defaultSummary(obs_pred_tbl) %>% t()
+  performance_tab <- do.call(rbind, 
+                             setNames(list(performance_tab,
+                                           new_performance), 
+                                      list("", name)))
+  return(performance_tab)
+}
+  
+
+add_performance <- function(performance_tab = performance_tab,
+                            fit = fit, 
+                            testX = testX, testY = testY, 
+                            name = name){
+  predicted <- predict(fit, testX)
+  obs_pred_tbl <- data.frame(obs = testY, pred = predicted)
+  new_performance <- defaultSummary(obs_pred_tbl)
+  rownames_val <- rownames(performance_tab)
+  performance_tab <- do.call(rbind, 
+                             setNames(list(performance_tab,
+                                           new_performance), 
+                                      list("", name)))
+  return(performance_tab)
+}
+```
+
+
+
+# Models fit 
+
+```{r}
+
+```
 
 ```{r}
 set.seed(100)
@@ -87,9 +125,55 @@ olsFitPCA <- train(absorpTrain, fatTrain,
                    preProcess = "pca")
 
 plsFit1 <- train(absorpTrain, fatTrain,
-                   method = "pls")
+                method = "pls",
+                 preProcess = c("center", "scale"))
 
 enetFit1 <- train(absorpTrain, fatTrain,
-                   method = "enet")
+                   method = "enet",
+                  preProcess = c("center", "scale"))
+```
+
+# Models performances
+
+```{r}
+performance_tab <- 
+  start_performance_tab(olsFitPCA, absorpTest, fatTest, "PCR") %>%
+  add_performance(plsFit1, absorpTest, fatTest, "PLS") %>%
+  add_performance(enetFit1, absorpTest, fatTest, "Elastic Net")
+```
+
+
+### Tuning plot
+
+```{r}
+ggplot(plsFit1)
+```
+
+
+## enet exploration
+
+```{r}
+enetFit1
+ggplot(enetFit1)
+```
+
+Viene scelta la fraction = 1 (modello completo). 
+Dovremmo essere quindi nel campo dei ridge models. 
+
+Proviamo a stimare un nuovo ridge, e un enet con tuning parameters più ampi
+
+```{r}
+enetGrid <- expand.grid(.lambda = c(0.00001, 0.0001, 
+                                    0.001, 0.01, 0.05, 0.1),
+                        .fraction = seq(0, 1, by = 0.20))
+
+enetFit2 <- train(absorpTrain, fatTrain,
+                  method = "enet",
+                  preProcess = c("center", "scale"),
+                  tuneGrid = enetGrid)
+ggplot(enetFit2)
+
+performance_tab <- performance_tab %>% 
+  add_performance(enetFit2, absorpTest, fatTest, "Elastic Net l:1e-05, f:1")
 ```
 
