@@ -1,0 +1,95 @@
+---
+title: "06. Linear model exercises"
+output: html_notebook
+---
+
+# Library and data
+
+```{r}
+library(caret)
+library(corrplot)
+library(pls)
+library(elasticnet)
+
+data(tecator)
+```
+
+Dati: 215 campioni di carne, analizzati con un laser ad infrarossi.
+
+- I cento predittori sono frequenze infrarossi (spettro)
+- Le variabili risposta sono il contenuto percentuale di acqua, grasso e proteine per ciascun campione, ottenuto tramite analisi chimica.
+
+L'obiettivo è prevedere il contenuto di grassi tramite analisi ad infrarossi, procedura meno costosa e più veloce dell'analisi chimica.
+
+
+# Data exploration
+
+```{r}
+colnames(absorp) <- paste0("I", 1:100)
+```
+
+
+
+## Collinearity
+
+```{r}
+correlations <- cor(absorp)
+corrplot(correlations, order = "hclust")
+
+findCorrelation(correlations, cutoff = .8)
+
+```
+
+Tutte le variabili sono fortemente correlate. Facciamo una PCA, sia con caret che senza
+
+```{r}
+#------ Caret
+pca_rules <- preProcess(absorp, method = "pca")
+# 2 componenti assorbono il 95% della varianza
+absorp_red1 <- predict(pca_rules, absorp)
+
+#----- Base
+pca_obj <- prcomp(absorp, center = T, scale = T)
+# Cumulative percentage of variance explained
+var <- (pca_obj$sdev^2/sum(pca_obj$sdev^2))*100
+
+head(var)
+plot(head(var), type = "l")
+```
+
+La prima componente da sola raccoglie il 98% della variabilità totale
+
+
+# Data partition
+
+```{r}
+set.seed(100)
+fat <- endpoints[, 2]
+
+TrainRows <- createDataPartition(fat, 
+                                 p = .70,
+                                 list = F)
+
+absorpTrain <- absorp[TrainRows, ]
+absorpTest <- absorp[-TrainRows, ]
+
+fatTrain <- fat[TrainRows]
+fatTest <- fat[-TrainRows]
+```
+
+
+# Model comparison
+
+```{r}
+set.seed(100)
+olsFitPCA <- train(absorpTrain, fatTrain,
+                   method = "lm",
+                   preProcess = "pca")
+
+plsFit1 <- train(absorpTrain, fatTrain,
+                   method = "pls")
+
+enetFit1 <- train(absorpTrain, fatTrain,
+                   method = "enet")
+```
+
