@@ -372,7 +372,7 @@ Su caret possiamo definirlo passando all'argomento tuneGrid un dataframe con i v
 
 
 ```{r}
-lambda_vec <- data.frame(lambda = seq(0, 1, by = 0.05))
+lambda_vec <- data.frame(.lambda = seq(0, 1, by = 0.05))
   
 ridgeFit1 <- train(solTrainXtrans, solTrainY,
                    method = "ridge",
@@ -389,5 +389,52 @@ performance_compare <- add_performance(ridgeFit1,
 ```
 
 
+# LASSO & Elastic Net 
 
+Lasso penalizza SSE nei minimi quadrati aggungendo un fattore di penalizzazione di primo ordine (quadrato). 
+
+In formula:
+
+$SSE_{L1} = \sum_{i=1}^n(y_i - \hat{y_i})^2 + \lambda \sum_{j=1}^P |\beta_j|$
+
+Elastic net considera sia il fattore di primo che di secondo ordine:
+
+$SSE_{enet} = \sum_{i=1}^n(y_i - \hat{y_i})^2 + \lambda_1 \sum_{j=1}^P |\beta_j| + \lambda_2 \sum_{j=1}^P \beta_j^2$
+
+Nell'elastic net utiliziamo come parametro di tuning sia lambda, sia la frazione rispetto alla full solution (non possiamo fare una griglia dei due lambda?)
+
+```{r}
+set.seed(100)
+
+enetTune <- expand.grid(.lambda = c(0, 0.01, 0.1),
+                       .fraction  = seq(.05, 1, length = 20) )
+  
+enetFit1 <- train(solTrainXtrans, solTrainY,
+                   method = "enet",
+                   preProcess = c("center", "scale"),
+                   trControl = cv10Fold,
+                   tuneGrid = enetTune)
+
+enetFit1
+
+performance_compare <- add_performance(enetFit1, 
+                                       solTestXtrans, solTestY,
+                                       performance_compare, 
+                                       "elasticNet")
+```
+
+### Elastic net tuning plot
+
+```{r}
+ggplot(enetFit1)
+```
+
+### Final model predictors
+
+Come capisco qual è il modello finale? 
+```{r}
+summary(enetFit1)
+
+# enetFit1$finalModel
+```
 
