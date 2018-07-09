@@ -72,7 +72,7 @@ Completare con selettore di pairwise correlations over threshold. Vedi dopo, esi
 
 # OLS. Ordinary least square
 
-## Standard OLS
+## Standard OLS - lm()
 
 Dobbiamo avere covariate e variabile risposta nello stesso dataset
 
@@ -137,7 +137,7 @@ R2
 ```
 
 
-## Robust OLS - MASS package
+## Robust OLS - MASS::
 
 Robust linear regression with Huber approach.
 
@@ -217,7 +217,7 @@ xyplot(resid(olsFit2) ~ predict(olsFit2),
 
 Sembra che la regressione colga bene la struttura dei dati: non notiamo pattern o outliers.
 
-## OLS removing pairwise correlated predictors
+## OLS removing pairwise correlated predictors - caret::
 
 ```{r}
 corThresh <- 0.9
@@ -252,3 +252,32 @@ performance_compare <- performance_compare %>%
 performance_compare
 ```
 
+## Cross-validated robust OLS - caret::
+
+Robust OLS richiede non singolarità della matrice di correlazione. Applichiamo pca preprocessing
+
+```{r}
+set.seed(100)
+
+rolsFit2 <- train(solTrainXtrans, solTrainY,
+                  method = "rlm",
+                  preProcess = "pca",
+                  trControl = cv10Fold)
+
+rolsPred2 <- predict(rolsFit2, solTestXtrans)
+
+rolsFitTestData2 <- data.frame(obs = solTestY, pred = rolsPred2)
+
+cvRobustOLS <- defaultSummary(rolsFitTestData2)
+
+performance_compare <- performance_compare %>%
+  rbind(cvRobustOLS = cvRobustOLS)
+
+performance_compare
+```
+
+Se nella funzione train() è stato fatto del preprocessing, questo tramite predict() si propaga al test set?
+
+
+
+# Partial Least Square
