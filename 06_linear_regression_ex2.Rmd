@@ -1,0 +1,272 @@
+---
+title: "06. Linear Regression exercises 2"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Ex 6.2 - Permeability
+
+## Load data and library
+
+```{r}
+library(AppliedPredictiveModeling)
+library(caret)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(GGally)
+
+data(permeability)
+```
+
+
+## PREPROCESSING
+
+### Sparsity Check 
+
+```{r, eval = F}
+sparsity <- preProcess(fingerprints, method = "spatialSign")
+finger_prep <- predict(sparsity, fingerprints) 
+```
+
+Capire perchè non rimuove i predittori con near zero variance
+
+#### Sparsity check v2
+
+```{r}
+nearZeroPred <- nearZeroVar(fingerprints)
+
+# Num variabili da rimuovere
+length(nearZeroPred)
+
+# Num colonne attese
+ncol(fingerprints) - length(nearZeroPred)
+
+fingerprint_prep <- as.data.frame(fingerprints) %>%
+  select(-nearZeroPred)
+```
+
+### Collinearity Check
+
+```{r}
+collinearityCheck <- preProcess(fingerprint_prep, 
+                                 method = c("center", "scale", "pca"))
+```
+
+
+### Missing Check
+
+```{r}
+anyNA(fingerprint_prep)
+```
+
+
+## DATA SPLITTING
+
+```{r}
+set.seed(100)
+trainRows <- createDataPartition(permeability,
+                                     p = 0.75,
+                                     list =  F)
+
+permeab_train <- permeability[trainRows]
+permeab_test <- permeability[-trainRows]
+
+finger_train <- fingerprint_prep[trainRows, ]
+finger_test <- fingerprint_prep[-trainRows, ]
+
+```
+
+
+## DATA EXPLORATION
+
+```{r}
+hist(permeability)
+```
+
+
+
+```{r}
+
+perm_data <- fingerprint_prep %>%
+  cbind(permeability)
+  
+ggplot(perm_data, aes(x = permeability, y = X1, col = X2)) +
+  geom_point() 
+  
+```
+
+
+# VISUAL DATA EXPLORATION
+
+Creiamo un id pari al ranking per permeabilità
+
+```{r}
+finger_data <- perm_data %>%
+  arrange(permeability) %>%
+  mutate(ID = 1:165) 
+```
+
+#### Check
+
+```{r}
+ggplot(data = finger_data,
+       aes(x = ID, y = permeability)) +
+  geom_point()
+
+```
+
+
+
+
+
+```{r}
+data_gather <- gather(finger_data, 
+                      key = "name", value = "fingerprint", 
+                      -ID, -permeability)
+
+# ggplot(data = data_gather,
+#        aes(x = ID, y = fingerprint, col = name)) +
+#   geom_jitter(show.legend = F)
+
+```
+
+
+
+```{r}
+
+show <- unique(data_gather$name)[1:100]
+
+data_gather2 <- data_gather %>%
+  filter(name %in% show) 
+
+
+ggplot(data = data_gather2,
+       aes(x = name, y = ID, 
+           fill = as.factor(fingerprint)
+           # alpha = permeability
+           )) +
+  geom_tile() +
+  scale_fill_manual(values = c("white","red"))
+
+
+```
+
+
+# PCA DATA EXPLORATION
+
+Creiamo un id pari al ranking per permeabilità
+
+```{r}
+
+collinearityCheck <- preProcess(fingerprint_prep, 
+                                 method = c("center", "scale", "pca"))
+
+pca_data <- predict(collinearityCheck, fingerprint_prep) %>%
+  cbind(permeability) %>%
+  arrange(permeability) %>%
+  mutate(ID = 1:165) 
+
+data_gather_pca <- gather(pca_data, 
+                      key = "name", value = "fingerprint", 
+                      -ID, -permeability)
+
+ggplot(data = data_gather_pca,
+       aes(x = name, y = ID, 
+           fill = fingerprint)) +
+  geom_tile() 
+
+```
+
+
+
+
+
+# LINEAR MODELS
+
+```{r}
+start_performance_tab <- function(fit, testX, testY, name){
+  performance_tab <- data.frame()
+  predicted <- predict(fit, testX)
+  obs_pred_tbl <- data.frame(obs = testY, pred = predicted)
+  new_performance <- defaultSummary(obs_pred_tbl) %>% t()
+  performance_tab <- do.call(rbind, 
+                             setNames(list(performance_tab,
+                                           new_performance), 
+                                      list("", name)))
+  return(performance_tab)
+}
+
+add_performance <- function(performance_tab = performance_tab,
+                            fit = fit, 
+                            testX = testX, testY = testY, 
+                            name = name){
+  predicted <- predict(fit, testX)
+  obs_pred_tbl <- data.frame(obs = testY, pred = predicted)
+  new_performance <- defaultSummary(obs_pred_tbl)
+  rownames_val <- rownames(performance_tab)
+  performance_tab <- do.call(rbind, 
+                             setNames(list(performance_tab,
+                                           new_performance), 
+                                      list("", name)))
+  return(performance_tab)
+}
+
+
+```
+
+
+## PCR
+
+```{r}
+pcrFit <- train(x = finger_train, y = permeab_train,
+                method = "lm",
+                preProcess = c("center", "scale", "pca"))
+
+predicted <- predict(pcrFit, finger_test)
+obs_pred_tbl <- data.frame(obs = permeab_test, pred = predicted)
+new_performance <- defaultSummary(obs_pred_tbl) %>% t()
+
+performance_tab <- start_performance_tab(
+  pcrFit, finger_test, permeab_test, "pcrFit")
+```
+
+
+## PLS
+
+```{r}
+plsFit <- train(x = finger_train, y = permeab_train,
+                method = "pls",
+                preProcess = c("center", "scale"))
+
+performance_tab <- add_performance(
+  performance_tab = performance_tab, 
+  fit = plsFit, 
+  testX = finger_test, testY = permeab_test, 
+  name = "plsFit")
+```
+
+
+## Neural Network
+
+```{r, eval = F}
+tooHigh <- findCorrelation(cor(finger_train), cutoff = .75)
+finger_train_nnet <- finger_train[, -tooHigh]
+finger_test_nnet <- finger_test[, -tooHigh]
+
+apply(finger_train, 1, sum)
+
+nnetFit1 <- train(finger_train_nnet, permeab_train,
+                  method = "avNNet",
+                  preProcess = c("center", "scale"))
+```
+
+
+## MARS
+
+```{r}
+marsFit <- train(finger_train, permeab_train,
+                 method = "earth")
+```
+
